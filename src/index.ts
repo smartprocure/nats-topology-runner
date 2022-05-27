@@ -43,11 +43,12 @@ export const runTopologyWithNats =
       : // Run topoloty with data from msg
         runTopology(spec, dag, { data })
     const persist = (snapshot: Snapshot) => {
-      debug('Snapshot %O', snapshot)
+      const streamSnapshot = { ...snapshot, ...streamData, numAttempts }
+      debug('Stream Snapshot %O', streamSnapshot)
       // Let NATS know we're working
       msg.working()
       // Persist snapshot
-      persistSnapshot({ ...snapshot, ...streamData, numAttempts })
+      persistSnapshot(streamSnapshot)
     }
     emitter.on('data', persist)
     try {
