@@ -1,6 +1,6 @@
 {
   "name": "nats-topology-runner",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Run a topology created with topology-runner using nats-jobs",
   "author": "GovSpend",
   "main": "dist/index.js",
@@ -31,7 +31,7 @@
   "license": "ISC",
   "peerDependencies": {
     "nats-jobs": ">= 0.0.5",
-    "topology-runner": "^0.0.5"
+    "topology-runner": ">= 0.0.6"
   },
   "devDependencies": {
     "@types/debug": "^4.1.7",

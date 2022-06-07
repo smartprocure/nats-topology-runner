@@ -41,7 +41,7 @@ export const runTopologyWithNats =
       ? // Resume topology based on unique stream data
         resumeTopology(spec, await loadSnapshot(streamData))
       : // Run topoloty with data from msg
-        runTopology(spec, dag, { data })
+        runTopology(spec, dag, { data, meta: streamData })
     const persist = (snapshot: Snapshot) => {
       const streamSnapshot = { ...snapshot, ...streamData, numAttempts }
       debug('Stream Snapshot %O', streamSnapshot)
