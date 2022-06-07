@@ -31,7 +31,7 @@
   "license": "ISC",
   "peerDependencies": {
     "nats-jobs": ">= 0.0.5",
-    "topology-runner": ">= 0.0.3"
+    "topology-runner": "^0.0.5"
   },
   "devDependencies": {
     "@types/debug": "^4.1.7",
