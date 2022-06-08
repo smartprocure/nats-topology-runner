@@ -1,6 +1,6 @@
 # NATS Topology Runner
 
-Run a job using [nats-jobs](https://github.com/smartprocure/nats-jobs) using [topology-runner](https://github.com/smartprocure/topology-runner). Exports a single function `runTopologyWithNats` that runs a topology and resumes the topology on redelivery of a message with the same `stream` and `streamSequence` pair.
+Run a job using [nats-jobs](https://github.com/smartprocure/nats-jobs) and [topology-runner](https://github.com/smartprocure/topology-runner). Exports a single function `runTopologyWithNats` that runs a topology and resumes the topology on redelivery of a message with the same `stream` and `streamSequence` pair.
 
 ## runTopologyWithNats
 
