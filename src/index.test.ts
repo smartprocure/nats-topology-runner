@@ -1,6 +1,11 @@
 import { describe, expect, test, afterEach } from '@jest/globals'
 import { JsMsg, StringCodec } from 'nats'
-import { runTopologyWithNats, Fns, StreamData, StreamSnapshot } from './index'
+import {
+  runTopologyWithNats,
+  Fns,
+  StreamSnapshot,
+  getStreamDataFromMsg,
+} from './index'
 import loki from 'lokijs'
 import { DAG, RunFn, Spec } from 'topology-runner'
 import _ from 'lodash/fp'
@@ -9,8 +14,6 @@ const db = new loki('test')
 const topology = db.addCollection<StreamSnapshot>('topology')
 const scraper = db.addCollection('scraper')
 const sc = StringCodec()
-
-const getStreamData = _.pick(['stream', 'streamSequence'])
 
 const dag: DAG = {
   api: { deps: [] },
@@ -49,7 +52,9 @@ const spec: Spec = {
     },
   },
 }
-const loadSnapshot = async (streamData: StreamData) => {
+
+const loadSnapshot = (msg: JsMsg) => {
+  const streamData = getStreamDataFromMsg(msg)
   const streamSnapshot = topology.findOne(streamData)
   // Snapshot not found
   if (!streamSnapshot) {
@@ -58,11 +63,12 @@ const loadSnapshot = async (streamData: StreamData) => {
   return streamSnapshot
 }
 
-const persistSnapshot = async (snapshot: StreamSnapshot) => {
-  const streamData = getStreamData(snapshot)
-  const streamSnapshot = topology.findOne(streamData)
-  if (streamSnapshot) {
-    topology.update({ ...streamSnapshot, ...snapshot })
+const persistSnapshot = (snapshot: StreamSnapshot, msg: JsMsg) => {
+  const streamData = getStreamDataFromMsg(msg)
+  const existing = topology.findOne(streamData)
+  if (existing) {
+    // Loki adds a meta field which must be stripped from the snapshot
+    topology.update({ ...existing, ...stripLoki(snapshot) })
   } else {
     topology.insertOne(snapshot)
   }
