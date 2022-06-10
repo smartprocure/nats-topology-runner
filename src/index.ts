@@ -15,17 +15,17 @@ export interface StreamData {
   streamSequence: number
 }
 
-export interface StreamSnapshot extends StreamData, Snapshot {
+export interface StreamSnapshot extends Snapshot, StreamData {
   numAttempts: number
 }
 
 export type Fns = {
   unpack(x: Uint8Array): any
-  loadSnapshot(streamData: StreamData): Promise<StreamSnapshot>
-  persistSnapshot(snapshot: StreamSnapshot): Promise<void>
+  loadSnapshot(msg: JsMsg): Promise<Snapshot> | Snapshot
+  persistSnapshot(snapshot: StreamSnapshot, msg: JsMsg): void
 }
 
-const getStreamDataFromMsg = (msg: JsMsg) => {
+export const getStreamDataFromMsg = (msg: JsMsg) => {
   const { stream, streamSequence } = msg.info
   return { stream, streamSequence }
 }
@@ -35,20 +35,21 @@ export const runTopologyWithNats =
     const { unpack, loadSnapshot, persistSnapshot } = fns
     const data = unpack(msg.data)
     const numAttempts = msg.info.redeliveryCount
-    const streamData = getStreamDataFromMsg(msg)
     const isRedelivery = numAttempts > 1
+    debug('Redelivery %s', isRedelivery)
     const { emitter, promise, getSnapshot } = isRedelivery
       ? // Resume topology based on unique stream data
-        resumeTopology(spec, await loadSnapshot(streamData))
+        resumeTopology(spec, await loadSnapshot(msg))
       : // Run topoloty with data from msg
-        runTopology(spec, dag, { data, meta: streamData })
+        runTopology(spec, dag, { data })
+    const streamData = getStreamDataFromMsg(msg)
     const persist = (snapshot: Snapshot) => {
       const streamSnapshot = { ...snapshot, ...streamData, numAttempts }
       debug('Stream Snapshot %O', streamSnapshot)
       // Let NATS know we're working
       msg.working()
       // Persist snapshot
-      persistSnapshot(streamSnapshot)
+      persistSnapshot(streamSnapshot, msg)
     }
     emitter.on('data', persist)
     try {
