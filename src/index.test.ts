@@ -225,6 +225,7 @@ describe('runTopologyWithNats', () => {
         attachments: {
           input: [[1, 2, 3]],
           status: 'errored',
+          error: 'Error: Failed processing id: 2',
           state: {
             index: 0,
             output: { '1': { file: 'file1.jpg' }, '2': { file: 'file2.jpg' } },
@@ -234,7 +235,6 @@ describe('runTopologyWithNats', () => {
       stream: 'ORDERS',
       streamSequence: 2,
       numAttempts: 1,
-      error: 'Failed processing id: 2',
     })
     expect(scraperRecord).toEqual({})
 

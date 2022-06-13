@@ -37,7 +37,7 @@ export const runTopologyWithNats =
     const numAttempts = msg.info.redeliveryCount
     const isRedelivery = numAttempts > 1
     debug('Redelivery %s', isRedelivery)
-    const { emitter, promise, getSnapshot } = isRedelivery
+    const { emitter, promise } = isRedelivery
       ? // Resume topology based on unique stream data
         resumeTopology(spec, await loadSnapshot(msg))
       : // Run topoloty with data from msg
@@ -52,9 +52,5 @@ export const runTopologyWithNats =
       persistSnapshot(streamSnapshot, msg)
     }
     emitter.on('data', persist)
-    try {
-      await promise
-    } finally {
-      await persist(getSnapshot())
-    }
+    await promise
   }
