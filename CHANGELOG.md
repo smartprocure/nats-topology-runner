@@ -1,3 +1,7 @@
+# 0.3.0
+
+* Added `options` to `runTopologyWithNats`.
+
 # 0.2.0
 
 * Simplify code based on `topology-runner` changes.
