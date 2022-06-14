@@ -16,9 +16,13 @@ export type Fns = {
   persistSnapshot(snapshot: StreamSnapshot, msg: JsMsg): void
 }
 
+export interface RunOptions {
+  debounceMs?: number
+}
+
 export type RunTopology = (
   spec: Spec,
   dag: DAG,
   fns: Fns,
-  options?: Options
+  options?: Options & RunOptions
 ) => (msg: JsMsg) => Promise<void>
