@@ -1,3 +1,9 @@
+# 0.3.0
+
+* Added `options` to `runTopologyWithNats`.
+* Always persist and await last snapshot.
+* `debounceMs` option to debounce persist calls.
+
 # 0.2.0
 
 * Simplify code based on `topology-runner` changes.

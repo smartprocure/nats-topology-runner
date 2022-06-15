@@ -1,11 +1,35 @@
 # NATS Topology Runner
 
-Run a job using [nats-jobs](https://github.com/smartprocure/nats-jobs) and [topology-runner](https://github.com/smartprocure/topology-runner). Exports a single function `runTopologyWithNats` that runs a topology and resumes the topology on redelivery of a message with the same `stream` and `streamSequence` pair.
+Run a job using [nats-jobs](https://github.com/smartprocure/nats-jobs)
+and [topology-runner](https://github.com/smartprocure/topology-runner).
+Exports the function `runTopologyWithNats` that runs a topology and
+resumes the topology based on `loadSnapshot`. Uniqueness can be determined
+by using `getStreamDataFromMsg` to extract `stream` and `streamSequence`
+from the message.
 
 ## runTopologyWithNats
 
+Returns a fn that takes a JsMsg and runs the topology
+with the data off the message. Automatically resumes a topology
+if the redeliveryCount is > 1. Regardless of whether the topology
+succeeds or fails, the last snapshot will be persisted and awaited.
+
+Pass value for `debounceMs` to minimize how many times `persistSnapshot`
+is called.
+
+The example below uses an in-memory database called `loki`. In a real-world
+scenario you would want to use something like MongoDB or Redis.
+
+If you topology executes fast enough you may want to use the `debounceMs`
+option to prevent the possibility of out-of-order writes to the datastore.
+
 ```typescript
-import { runTopologyWithNats, StreamSnapshot, Fns } from 'nats-topology-runner'
+import {
+  runTopologyWithNats,
+  getStreamDataFromMsg,
+  StreamSnapshot,
+  Fns,
+} from 'nats-topology-runner'
 import { JsMsg, StringCodec } from 'nats'
 import { expBackoff, JobDef, jobProcessor } from 'nats-jobs'
 import { DAG, RunFn, Spec } from 'topology-runner'
@@ -56,7 +80,8 @@ const spec: Spec = {
     },
   },
 }
-const loadSnapshot = async (streamData: StreamData) => {
+const loadSnapshot = async (msg: JsMsg) => {
+  const streamData = getStreamDataFromMsg(msg)
   const streamSnapshot = topology.findOne(streamData)
   // Snapshot not found
   if (!streamSnapshot) {
