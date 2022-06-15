@@ -1,3 +1,7 @@
+# 0.4.0
+
+* Latest `nats-jobs`.
+
 # 0.3.0
 
 * Added `options` to `runTopologyWithNats`.

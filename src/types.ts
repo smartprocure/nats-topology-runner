@@ -1,6 +1,6 @@
 import { Snapshot, Spec, DAG, Options } from 'topology-runner'
 import { JsMsg } from 'nats'
-import { PerformOpts } from 'nats-jobs'
+import { Context } from 'nats-jobs'
 
 export interface StreamData {
   stream: string
@@ -27,4 +27,4 @@ export type RunTopology = (
   dag: DAG,
   fns: Fns,
   options?: Options & RunOptions
-) => (msg: JsMsg, context?: PerformOpts) => Promise<void>
+) => (msg: JsMsg, context?: Context) => Promise<void>
