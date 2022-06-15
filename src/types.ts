@@ -27,4 +27,4 @@ export type RunTopology = (
   dag: DAG,
   fns: Fns,
   options?: Options & RunOptions
-) => (msg: JsMsg, opts?: PerformOpts) => Promise<void>
+) => (msg: JsMsg, context?: PerformOpts) => Promise<void>
