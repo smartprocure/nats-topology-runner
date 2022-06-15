@@ -37,7 +37,7 @@ export const runTopologyWithNats: RunTopology =
       persistSnapshot,
       shouldResume = defShouldResume,
     } = fns
-    // Augment meta with context and msg
+    // Merge context from nats-jobs, msg, and any optional user context
     const extendedContext = { ...context, msg, ...options?.context }
     const { debounceMs } = options || {}
     const data = unpack(msg.data)
