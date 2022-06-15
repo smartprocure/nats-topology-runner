@@ -1,5 +1,6 @@
 import { Snapshot, Spec, DAG, Options } from 'topology-runner'
 import { JsMsg } from 'nats'
+import { PerformOpts } from 'nats-jobs'
 
 export interface StreamData {
   stream: string
@@ -14,6 +15,7 @@ export type Fns = {
   unpack(x: Uint8Array): any
   loadSnapshot(msg: JsMsg): Promise<Snapshot> | Snapshot
   persistSnapshot(snapshot: StreamSnapshot, msg: JsMsg): void
+  shouldResume(msg: JsMsg): Promise<boolean> | boolean
 }
 
 export interface RunOptions {
@@ -25,4 +27,4 @@ export type RunTopology = (
   dag: DAG,
   fns: Fns,
   options?: Options & RunOptions
-) => (msg: JsMsg) => Promise<void>
+) => (msg: JsMsg, opts: PerformOpts) => Promise<void>
