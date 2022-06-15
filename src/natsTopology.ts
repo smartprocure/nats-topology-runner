@@ -46,7 +46,7 @@ export const runTopologyWithNats: RunTopology =
     const resuming = await shouldResume(msg)
     debug('Resuming %s', resuming)
     const { emitter, promise, getSnapshot } = resuming
-      ? // Resume topology based on unique stream data
+      ? // Resume topology based on uniqueness defined in loadSnapshot
         resumeTopology(spec, await loadSnapshot(msg), {
           context: extendedContext,
         })
