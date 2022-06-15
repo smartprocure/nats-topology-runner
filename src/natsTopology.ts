@@ -1,6 +1,6 @@
 import { runTopology, resumeTopology, Snapshot } from 'topology-runner'
 import { JsMsg } from 'nats'
-import _ from 'lodash/fp'
+import _ from 'lodash'
 import { RunTopology } from './types'
 import _debug from 'debug'
 
@@ -40,12 +40,15 @@ export const runTopologyWithNats: RunTopology =
       // Persist snapshot
       return persistSnapshot(streamSnapshot, msg)
     }
+    const debounced = _.debounce(persist, debounceMs)
     // Emit data with an optional debounce delay
-    emitter.on('data', debounceMs ? _.debounce(debounceMs, persist) : persist)
+    emitter.on('data', debounceMs ? debounced : persist)
     try {
       // Wait for the topology to finish
       await promise
     } finally {
+      // Cancel any delayed invocations
+      debounced.cancel()
       // Make sure we persist the final snapshot
       await persist(getSnapshot())
     }
