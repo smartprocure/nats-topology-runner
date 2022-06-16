@@ -26,8 +26,8 @@ const defShouldResume = (msg: JsMsg) => msg.info.redeliveryCount > 1
  * if the redeliveryCount is > 1. Regardless of whether the topology
  * succeeds or fails, the last snapshot will be persisted and awaited.
  *
- * Pass value for `debounceMs` to minimize how many times `persistSnapshot`
- * is called.
+ * Pass a value for `debounceMs` to prevent rapid calls to `persistSnapshot`.
+ * To customize the resumption behavior, pass a fn for `shouldResume`.
  */
 export const runTopologyWithNats: RunTopology =
   (spec, dag, fns, options) => async (msg, context) => {
@@ -40,9 +40,11 @@ export const runTopologyWithNats: RunTopology =
     // Merge context from nats-jobs, msg, and any optional user context
     const extendedContext = { ...context, msg, ...options?.context }
     const { debounceMs } = options || {}
+    // Unpack data
     const data = unpack(msg.data)
     const numAttempts = msg.info.redeliveryCount
     debug('Num attempts %d', numAttempts)
+    // Should the topology be resumed
     const resuming = await shouldResume(msg)
     debug('Resuming %s', resuming)
     const { emitter, promise, getSnapshot } = resuming
@@ -52,7 +54,9 @@ export const runTopologyWithNats: RunTopology =
         })
       : // Run topology with data from msg
         runTopology(spec, dag, { ...options, data, context: extendedContext })
+    // Get the stream data
     const streamData = getStreamDataFromMsg(msg)
+    // Persist
     const persist = (snapshot: Snapshot) => {
       const streamSnapshot = { ...snapshot, ...streamData, numAttempts }
       debug('Stream Snapshot %O', streamSnapshot)
@@ -68,7 +72,7 @@ export const runTopologyWithNats: RunTopology =
     } finally {
       // Cancel any delayed invocations
       debounced.cancel()
-      // Make sure we persist the final snapshot
+      // Make sure we persist and await the final snapshot
       await persist(getSnapshot())
     }
   }
