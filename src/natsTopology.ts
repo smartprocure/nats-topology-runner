@@ -6,14 +6,6 @@ import _debug from 'debug'
 
 const debug = _debug('nats-topology-runner')
 
-/**
- * Get the name of the stream and the sequence number of the message
- */
-export const getStreamDataFromMsg = (msg: JsMsg) => {
-  const { stream, streamSequence } = msg.info
-  return { stream, streamSequence }
-}
-
 const defGetTopologyId = (msg: JsMsg) => {
   const { stream, streamSequence } = msg.info
   return `${stream}-${streamSequence}`
@@ -46,11 +38,9 @@ export const runTopologyWithNats: RunTopology =
     const { topologyId = getTopologyId(msg), ...topologyOptions }: MsgData =
       unpack(msg.data)
     // Get the stream data
-    const streamData = getStreamDataFromMsg(msg)
-    const { stream } = streamData
+    const { redeliveryCount: numAttempts, stream, streamSequence } = msg.info
     // Merge message context, msg, and topologyId
     const extendedContext = { ...context, stream, topologyId, msg }
-    const numAttempts = msg.info.redeliveryCount
     debug('Num attempts %d', numAttempts)
     // Should the topology be resumed
     const resuming = await shouldResume(topologyId)
@@ -71,7 +61,12 @@ export const runTopologyWithNats: RunTopology =
     }
     // Persist
     const persist = (snapshot: Snapshot) => {
-      const streamSnapshot = { ...snapshot, ...streamData, numAttempts }
+      const streamSnapshot = {
+        ...snapshot,
+        stream,
+        streamSequence,
+        numAttempts,
+      }
       debug('Stream Snapshot %O', streamSnapshot)
       // Persist snapshot
       return persistSnapshot(topologyId, streamSnapshot)
