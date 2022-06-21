@@ -1,19 +1,16 @@
 import { describe, expect, test, afterEach } from '@jest/globals'
-import { JsMsg, StringCodec } from 'nats'
-import {
-  runTopologyWithNats,
-  Fns,
-  StreamSnapshot,
-  getStreamDataFromMsg,
-} from './index'
+import { JsMsg, JSONCodec } from 'nats'
+import { runTopologyWithNats, Fns, StreamSnapshot } from './index'
 import loki from 'lokijs'
 import { DAG, RunFn, Spec } from 'topology-runner'
 import _ from 'lodash/fp'
 
 const db = new loki('test')
-const topology = db.addCollection<StreamSnapshot>('topology')
+const topology = db.addCollection<StreamSnapshot & { topologyId: string }>(
+  'topology'
+)
 const scraper = db.addCollection('scraper')
-const sc = StringCodec()
+const jc = JSONCodec()
 
 const dag: DAG = {
   api: { deps: [] },
@@ -53,24 +50,16 @@ const spec: Spec = {
   },
 }
 
-const loadSnapshot = (msg: JsMsg) => {
-  const streamData = getStreamDataFromMsg(msg)
-  const streamSnapshot = topology.findOne(streamData)
-  // Snapshot not found
-  if (!streamSnapshot) {
-    throw new Error(`No snapshot found for ${streamData}`)
-  }
-  return streamSnapshot
-}
+const loadSnapshot = (topologyId: string) =>
+  topology.findOne({ topologyId }) || undefined
 
-const persistSnapshot = (snapshot: StreamSnapshot, msg: JsMsg) => {
-  const streamData = getStreamDataFromMsg(msg)
-  const existing = topology.findOne(streamData)
+const persistSnapshot = (topologyId: string, snapshot: StreamSnapshot) => {
+  const existing = topology.findOne({ topologyId })
   if (existing) {
     // Loki adds a meta field which must be stripped from the snapshot
     topology.update({ ...existing, ...stripLoki(snapshot) })
   } else {
-    topology.insertOne(snapshot)
+    topology.insertOne({ ...snapshot, topologyId })
   }
 }
 
@@ -83,7 +72,7 @@ describe('runTopologyWithNats', () => {
   })
   test('should run topology to completion', async () => {
     const fns: Fns = {
-      unpack: sc.decode,
+      unpack: jc.decode,
       persistSnapshot,
       loadSnapshot,
     }
@@ -91,7 +80,7 @@ describe('runTopologyWithNats', () => {
     const streamData = { stream: 'ORDERS', streamSequence: 1 }
     const msg = {
       info: { ...streamData, redeliveryCount: 1 },
-      data: sc.encode('Hello'),
+      data: jc.encode({ data: 'Hello' }),
       subject: 'ORDERS',
       /* eslint-disable-next-line */
       working() {},
@@ -183,7 +172,7 @@ describe('runTopologyWithNats', () => {
     }
     const modifiedSpec = _.set('nodes.attachments.run', attachmentsRun, spec)
     const fns: Fns = {
-      unpack: sc.decode,
+      unpack: jc.decode,
       persistSnapshot,
       loadSnapshot,
     }
@@ -191,7 +180,7 @@ describe('runTopologyWithNats', () => {
     const streamData = { stream: 'ORDERS', streamSequence: 2 }
     const msg = {
       info: { ...streamData, redeliveryCount: 1 },
-      data: sc.encode('Hello'),
+      data: jc.encode({ data: 'Hello' }),
       subject: 'ORDERS',
       /* eslint-disable-next-line */
       working() {},
