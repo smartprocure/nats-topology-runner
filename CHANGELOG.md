@@ -1,3 +1,10 @@
+# 0.5.0
+
+* Propagate graceful shutdown from `nats-jobs`.
+* `getTopologyId` fn. Pass `topologyId` to `loadSnapshot`, `persistSnapshot`, and `shouldResume`.
+* Encoded data should be an object. See `MsgData` type.
+* `ExtendedContext` type.
+
 # 0.4.0
 
 * Latest `nats-jobs`.

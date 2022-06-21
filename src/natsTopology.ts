@@ -1,24 +1,15 @@
 import { runTopology, resumeTopology, Snapshot } from 'topology-runner'
 import { JsMsg } from 'nats'
 import _ from 'lodash'
-import { RunTopology } from './types'
+import { RunTopology, MsgData } from './types'
 import _debug from 'debug'
 
 const debug = _debug('nats-topology-runner')
 
-/**
- * Get the name of the stream and the sequence number of the message
- */
-export const getStreamDataFromMsg = (msg: JsMsg) => {
+const defGetTopologyId = (msg: JsMsg) => {
   const { stream, streamSequence } = msg.info
-  return { stream, streamSequence }
+  return `${stream}-${streamSequence}`
 }
-
-/**
- * Resume the topology when the message is delivered the second, third, etc.
- * time.
- */
-const defShouldResume = (msg: JsMsg) => msg.info.redeliveryCount > 1
 
 /**
  * Returns a fn that takes a JsMsg and runs the topology
@@ -35,33 +26,50 @@ export const runTopologyWithNats: RunTopology =
       unpack,
       loadSnapshot,
       persistSnapshot,
-      shouldResume = defShouldResume,
+      shouldResume = async (topologyId: string) => {
+        const snapshot = await loadSnapshot(topologyId)
+        // Snapshot was found and status is not completed
+        return snapshot && snapshot?.status !== 'completed'
+      },
+      getTopologyId = defGetTopologyId,
     } = fns
-    // Merge context from nats-jobs, msg, and any optional user context
-    const extendedContext = { ...context, msg, ...options?.context }
     const { debounceMs } = options || {}
     // Unpack data
-    const data = unpack(msg.data)
-    const numAttempts = msg.info.redeliveryCount
+    const { topologyId = getTopologyId(msg), ...topologyOptions }: MsgData =
+      unpack(msg.data)
+    // Get the stream data
+    const { redeliveryCount: numAttempts, stream, streamSequence } = msg.info
+    // Merge message context, msg, and topologyId
+    const extendedContext = { ...context, stream, topologyId, msg }
     debug('Num attempts %d', numAttempts)
     // Should the topology be resumed
-    const resuming = await shouldResume(msg)
+    const resuming = await shouldResume(topologyId)
     debug('Resuming %s', resuming)
-    const { emitter, promise, getSnapshot } = resuming
+    const { emitter, promise, getSnapshot, stop } = resuming
       ? // Resume topology based on uniqueness defined in loadSnapshot
-        resumeTopology(spec, await loadSnapshot(msg), {
+        resumeTopology(spec, await loadSnapshot(topologyId), {
           context: extendedContext,
         })
       : // Run topology with data from msg
-        runTopology(spec, dag, { ...options, data, context: extendedContext })
-    // Get the stream data
-    const streamData = getStreamDataFromMsg(msg)
+        runTopology(spec, dag, {
+          ...topologyOptions,
+          context: extendedContext,
+        })
+    // Propagate abort to topology
+    if (context) {
+      context.signal.addEventListener('abort', stop)
+    }
     // Persist
     const persist = (snapshot: Snapshot) => {
-      const streamSnapshot = { ...snapshot, ...streamData, numAttempts }
+      const streamSnapshot = {
+        ...snapshot,
+        stream,
+        streamSequence,
+        numAttempts,
+      }
       debug('Stream Snapshot %O', streamSnapshot)
       // Persist snapshot
-      return persistSnapshot(streamSnapshot, msg)
+      return persistSnapshot(topologyId, streamSnapshot)
     }
     const debounced = _.debounce(persist, debounceMs)
     // Emit data with an optional debounce delay

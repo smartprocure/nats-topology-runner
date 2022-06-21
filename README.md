@@ -11,11 +11,9 @@ from the message.
 
 Returns a fn that takes a JsMsg and runs the topology
 with the data off the message. Automatically resumes a topology
-if the redeliveryCount is > 1. Regardless of whether the topology
-succeeds or fails, the last snapshot will be persisted and awaited.
-
-Pass value for `debounceMs` to minimize how many times `persistSnapshot`
-is called.
+if a snapshot exists with the topologyId and it was not run to completion.
+Regardless of whether the topology succeeds or fails, the last snapshot will
+be persisted and awaited.
 
 The example below uses an in-memory database called `loki`. In a real-world
 scenario you would want to use something like MongoDB or Redis.
@@ -30,18 +28,18 @@ import {
   StreamSnapshot,
   Fns,
 } from 'nats-topology-runner'
-import { JsMsg, StringCodec } from 'nats'
+import { JsMsg, JSONCodec } from 'nats'
 import { expBackoff, JobDef, jobProcessor } from 'nats-jobs'
 import { DAG, RunFn, Spec } from 'topology-runner'
 import loki from 'lokijs'
 import _ from 'lodash/fp'
 
 const db = new loki('test.db')
-const topology = db.addCollection<StreamSnapshot>('topology')
+const topology = db.addCollection<StreamSnapshot & { topologyId: string }>(
+  'topology'
+)
 const scraper = db.addCollection('scraper')
-const sc = StringCodec()
-
-const getStreamData = _.pick(['stream', 'streamSequence'])
+const jc = JSONCodec()
 
 const dag: DAG = {
   api: { deps: [] },
@@ -80,28 +78,21 @@ const spec: Spec = {
     },
   },
 }
-const loadSnapshot = async (msg: JsMsg) => {
-  const streamData = getStreamDataFromMsg(msg)
-  const streamSnapshot = topology.findOne(streamData)
-  // Snapshot not found
-  if (!streamSnapshot) {
-    throw new Error(`No snapshot found for ${streamData}`)
-  }
-  return streamSnapshot
-}
+const loadSnapshot = (topologyId: string) =>
+  topology.findOne({ topologyId }) || undefined
 
-const persistSnapshot = async (snapshot: StreamSnapshot) => {
-  const streamData = getStreamData(snapshot)
-  const streamSnapshot = topology.findOne(streamData)
-  if (streamSnapshot) {
-    topology.update({ ...streamSnapshot, ...snapshot })
+const persistSnapshot = (topologyId: string, snapshot: StreamSnapshot) => {
+  const existing = topology.findOne({ topologyId })
+  if (existing) {
+    // Loki adds a meta field which must be stripped from the snapshot
+    topology.update({ ...existing, ...stripLoki(snapshot) })
   } else {
-    topology.insertOne(snapshot)
+    topology.insertOne({ ...snapshot, topologyId })
   }
 }
 
 const fns: Fns = {
-  unpack: sc.decode,
+  unpack: jc.decode,
   persistSnapshot,
   loadSnapshot,
 }

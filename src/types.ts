@@ -13,9 +13,10 @@ export interface StreamSnapshot extends Snapshot, StreamData {
 
 export type Fns = {
   unpack(x: Uint8Array): any
-  loadSnapshot(msg: JsMsg): Promise<Snapshot> | Snapshot
-  persistSnapshot(snapshot: StreamSnapshot, msg: JsMsg): void
-  shouldResume?(msg: JsMsg): Promise<boolean> | boolean
+  loadSnapshot(topologyId: string): Promise<Snapshot> | Snapshot | undefined
+  persistSnapshot(topologyId: string, snapshot: StreamSnapshot): void
+  shouldResume?(topologyId: string): Promise<boolean> | boolean
+  getTopologyId?(msg: JsMsg): string
 }
 
 export interface RunOptions {
@@ -26,5 +27,15 @@ export type RunTopology = (
   spec: Spec,
   dag: DAG,
   fns: Fns,
-  options?: Options & RunOptions
+  options?: RunOptions
 ) => (msg: JsMsg, context?: Context) => Promise<void>
+
+export interface MsgData extends Options {
+  topologyId: string
+}
+
+export interface ExtendedContext extends Context {
+  stream: string
+  topologyId: string
+  msg: JsMsg
+}
