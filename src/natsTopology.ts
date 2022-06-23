@@ -21,7 +21,7 @@ const defGetTopologyId = (msg: JsMsg) => {
  * To customize the resumption behavior, pass a fn for `shouldResume`.
  */
 export const runTopologyWithNats: RunTopology =
-  (spec, dag, fns, options) => async (msg, context) => {
+  (spec, fns, options) => async (msg, context) => {
     const {
       unpack,
       loadSnapshot,
@@ -51,7 +51,7 @@ export const runTopologyWithNats: RunTopology =
           context: extendedContext,
         })
       : // Run topology with data from msg
-        runTopology(spec, dag, {
+        runTopology(spec, {
           ...topologyOptions,
           context: extendedContext,
         })
