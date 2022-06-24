@@ -14,7 +14,7 @@ const defGetTopologyId = (msg: JsMsg) => {
 /**
  * Returns a fn that takes a JsMsg and runs the topology
  * with the data off the message. Automatically resumes a topology
- * if the redeliveryCount is > 1. Regardless of whether the topology
+ * if loaded snapshot is not complete. Regardless of whether the topology
  * succeeds or fails, the last snapshot will be persisted and awaited.
  *
  * Pass a value for `debounceMs` to prevent rapid calls to `persistSnapshot`.
