@@ -2,7 +2,7 @@ import { describe, expect, test, afterEach } from '@jest/globals'
 import { JsMsg, JSONCodec } from 'nats'
 import { runTopologyWithNats, Fns, StreamSnapshot } from './index'
 import loki from 'lokijs'
-import { DAG, RunFn, Spec } from 'topology-runner'
+import { RunFn, Spec } from 'topology-runner'
 import _ from 'lodash/fp'
 
 const db = new loki('test')
@@ -12,40 +12,32 @@ const topology = db.addCollection<StreamSnapshot & { topologyId: string }>(
 const scraper = db.addCollection('scraper')
 const jc = JSONCodec()
 
-const dag: DAG = {
-  api: { deps: [] },
-  details: { deps: ['api'] },
-  attachments: { deps: ['api'] },
-  writeToDB: { deps: ['details', 'attachments'] },
-}
-
 const spec: Spec = {
-  nodes: {
-    api: {
-      run: async () => [1, 2, 3],
+  api: {
+    deps: [],
+    run: async () => [1, 2, 3],
+  },
+  details: {
+    deps: ['api'],
+    run: async ({ data }) => {
+      const ids: number[] = data[0]
+      return ids.reduce(
+        (acc, n) => _.set(n, { description: `description ${n}` }, acc),
+        {}
+      )
     },
-    details: {
-      run: async ({ data }) => {
-        const ids: number[] = data[0]
-        return ids.reduce(
-          (acc, n) => _.set(n, { description: `description ${n}` }, acc),
-          {}
-        )
-      },
+  },
+  attachments: {
+    deps: ['api'],
+    run: async ({ data }) => {
+      const ids: number[] = data[0]
+      return ids.reduce((acc, n) => _.set(n, { file: `file${n}.jpg` }, acc), {})
     },
-    attachments: {
-      run: async ({ data }) => {
-        const ids: number[] = data[0]
-        return ids.reduce(
-          (acc, n) => _.set(n, { file: `file${n}.jpg` }, acc),
-          {}
-        )
-      },
-    },
-    writeToDB: {
-      run: async ({ data }) => {
-        scraper.insert(_.mergeAll(data))
-      },
+  },
+  writeToDB: {
+    deps: ['details', 'attachments'],
+    run: async ({ data }) => {
+      scraper.insert(_.mergeAll(data))
     },
   },
 }
@@ -76,7 +68,7 @@ describe('runTopologyWithNats', () => {
       persistSnapshot,
       loadSnapshot,
     }
-    const perform = runTopologyWithNats(spec, dag, fns)
+    const perform = runTopologyWithNats(spec, fns)
     const streamData = { stream: 'ORDERS', streamSequence: 1 }
     const msg = {
       info: { ...streamData, redeliveryCount: 1 },
@@ -91,19 +83,15 @@ describe('runTopologyWithNats', () => {
 
     expect(topologyRecord).toMatchObject({
       status: 'completed',
-      dag: {
-        api: { deps: [] },
-        details: { deps: ['api'] },
-        attachments: { deps: ['api'] },
-        writeToDB: { deps: ['details', 'attachments'] },
-      },
       data: {
         api: {
-          input: 'Hello',
+          deps: [],
+          input: ['Hello'],
           status: 'completed',
           output: [1, 2, 3],
         },
         details: {
+          deps: ['api'],
           input: [[1, 2, 3]],
           status: 'completed',
           output: {
@@ -113,6 +101,7 @@ describe('runTopologyWithNats', () => {
           },
         },
         attachments: {
+          deps: ['api'],
           input: [[1, 2, 3]],
           status: 'completed',
           output: {
@@ -122,6 +111,7 @@ describe('runTopologyWithNats', () => {
           },
         },
         writeToDB: {
+          deps: ['details', 'attachments'],
           input: [
             {
               '1': { description: 'description 1' },
@@ -170,13 +160,13 @@ describe('runTopologyWithNats', () => {
       }
       return output
     }
-    const modifiedSpec = _.set('nodes.attachments.run', attachmentsRun, spec)
+    const modifiedSpec = _.set('attachments.run', attachmentsRun, spec)
     const fns: Fns = {
       unpack: jc.decode,
       persistSnapshot,
       loadSnapshot,
     }
-    const perform = runTopologyWithNats(modifiedSpec, dag, fns)
+    const perform = runTopologyWithNats(modifiedSpec, fns)
     const streamData = { stream: 'ORDERS', streamSequence: 2 }
     const msg = {
       info: { ...streamData, redeliveryCount: 1 },
@@ -190,19 +180,15 @@ describe('runTopologyWithNats', () => {
     let scraperRecord = stripLoki(scraper.findOne({}))
     expect(topologyRecord).toMatchObject({
       status: 'errored',
-      dag: {
-        api: { deps: [] },
-        details: { deps: ['api'] },
-        attachments: { deps: ['api'] },
-        writeToDB: { deps: ['details', 'attachments'] },
-      },
       data: {
         api: {
-          input: 'Hello',
+          deps: [],
+          input: ['Hello'],
           status: 'completed',
           output: [1, 2, 3],
         },
         details: {
+          deps: ['api'],
           input: [[1, 2, 3]],
           status: 'completed',
           output: {
@@ -212,9 +198,12 @@ describe('runTopologyWithNats', () => {
           },
         },
         attachments: {
+          deps: ['api'],
           input: [[1, 2, 3]],
           status: 'errored',
-          error: 'Error: Failed processing id: 2',
+          error: {
+            stack: expect.stringContaining('Error: Failed processing id: 2'),
+          },
           state: {
             index: 0,
             output: { '1': { file: 'file1.jpg' }, '2': { file: 'file2.jpg' } },
@@ -234,19 +223,15 @@ describe('runTopologyWithNats', () => {
     scraperRecord = stripLoki(scraper.findOne({}))
     expect(topologyRecord).toMatchObject({
       status: 'completed',
-      dag: {
-        api: { deps: [] },
-        details: { deps: ['api'] },
-        attachments: { deps: ['api'] },
-        writeToDB: { deps: ['details', 'attachments'] },
-      },
       data: {
         api: {
-          input: 'Hello',
+          deps: [],
+          input: ['Hello'],
           status: 'completed',
           output: [1, 2, 3],
         },
         details: {
+          deps: ['api'],
           input: [[1, 2, 3]],
           status: 'completed',
           output: {
@@ -256,6 +241,7 @@ describe('runTopologyWithNats', () => {
           },
         },
         attachments: {
+          deps: ['api'],
           input: [[1, 2, 3]],
           status: 'completed',
           output: {
@@ -265,6 +251,7 @@ describe('runTopologyWithNats', () => {
           },
         },
         writeToDB: {
+          deps: ['details', 'attachments'],
           input: [
             {
               '1': { description: 'description 1' },

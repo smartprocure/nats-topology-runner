@@ -25,7 +25,6 @@ export interface RunOptions {
 
 export type RunTopology = (
   spec: Spec,
-  dag: DAG,
   fns: Fns,
   options?: RunOptions
 ) => (msg: JsMsg, context?: Context) => Promise<void>

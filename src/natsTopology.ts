@@ -14,14 +14,14 @@ const defGetTopologyId = (msg: JsMsg) => {
 /**
  * Returns a fn that takes a JsMsg and runs the topology
  * with the data off the message. Automatically resumes a topology
- * if the redeliveryCount is > 1. Regardless of whether the topology
+ * if loaded snapshot is not complete. Regardless of whether the topology
  * succeeds or fails, the last snapshot will be persisted and awaited.
  *
  * Pass a value for `debounceMs` to prevent rapid calls to `persistSnapshot`.
  * To customize the resumption behavior, pass a fn for `shouldResume`.
  */
 export const runTopologyWithNats: RunTopology =
-  (spec, dag, fns, options) => async (msg, context) => {
+  (spec, fns, options) => async (msg, context) => {
     const {
       unpack,
       loadSnapshot,
@@ -51,11 +51,11 @@ export const runTopologyWithNats: RunTopology =
           context: extendedContext,
         })
       : // Run topology with data from msg
-        runTopology(spec, dag, {
+        runTopology(spec, {
           ...topologyOptions,
           context: extendedContext,
         })
-    // Propagate abort to topology
+    // Propagate nats-jobs abort to topology
     if (context) {
       context.signal.addEventListener('abort', stop)
     }

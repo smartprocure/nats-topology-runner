@@ -1,3 +1,7 @@
+# 0.6.0
+
+* Latest `topology-runner`.
+
 # 0.5.0
 
 * Propagate graceful shutdown from `nats-jobs`.
