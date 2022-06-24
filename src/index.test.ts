@@ -201,7 +201,9 @@ describe('runTopologyWithNats', () => {
           deps: ['api'],
           input: [[1, 2, 3]],
           status: 'errored',
-          error: expect.stringContaining('Error: Failed processing id: 2'),
+          error: {
+            stack: expect.stringContaining('Error: Failed processing id: 2'),
+          },
           state: {
             index: 0,
             output: { '1': { file: 'file1.jpg' }, '2': { file: 'file2.jpg' } },
