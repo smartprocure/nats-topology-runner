@@ -55,7 +55,7 @@ export const runTopologyWithNats: RunTopology =
           ...topologyOptions,
           context: extendedContext,
         })
-    // Propagate abort to topology
+    // Propagate nats-jobs abort to topology
     if (context) {
       context.signal.addEventListener('abort', stop)
     }
