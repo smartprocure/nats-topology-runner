@@ -45,7 +45,7 @@ export const runTopologyWithNats: RunTopology =
     // Should the topology be resumed
     const resuming = await shouldResume(topologyId)
     debug('Resuming %s', resuming)
-    const { emitter, promise, getSnapshot, stop } = resuming
+    const { start, stop, emitter, getSnapshot } = resuming
       ? // Resume topology based on uniqueness defined in loadSnapshot
         resumeTopology(spec, await loadSnapshot(topologyId), {
           context: extendedContext,
@@ -76,7 +76,7 @@ export const runTopologyWithNats: RunTopology =
     emitter.on('data', debounceMs ? debounced : persist)
     try {
       // Wait for the topology to finish
-      await promise
+      await start()
     } finally {
       // Cancel any delayed invocations
       debounced.cancel()
