@@ -1,4 +1,4 @@
-import { Snapshot, Spec, DAG, Options } from 'topology-runner'
+import { Snapshot, Spec, Options } from 'topology-runner'
 import { JsMsg } from 'nats'
 import { Context } from 'nats-jobs'
 
