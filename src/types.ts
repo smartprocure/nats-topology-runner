@@ -13,7 +13,9 @@ export interface StreamSnapshot extends Snapshot, StreamData {
 
 export type Fns = {
   unpack(x: Uint8Array): any
-  loadSnapshot(topologyId: string): Promise<Snapshot> | Snapshot | undefined
+  loadSnapshot(
+    topologyId: string
+  ): Promise<Snapshot | undefined> | Snapshot | undefined
   persistSnapshot(topologyId: string, snapshot: StreamSnapshot): void
   shouldResume?(topologyId: string): Promise<boolean> | boolean
   getTopologyId?(msg: JsMsg): string
