@@ -1,3 +1,7 @@
+# 0.7.1
+
+* Allow `loadSnapshot` to return a promise that resolves to undefined
+
 # 0.7.0
 
 * Latest `topology-runner`.

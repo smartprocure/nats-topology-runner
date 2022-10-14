@@ -1,6 +1,6 @@
 {
   "name": "nats-topology-runner",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Run a topology created with topology-runner using nats-jobs",
   "author": "GovSpend",
   "main": "dist/index.js",
